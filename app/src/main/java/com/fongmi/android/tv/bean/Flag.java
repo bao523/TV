@@ -5,8 +5,10 @@ import android.os.Parcelable;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.impl.Diffable;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Trans;
 import com.google.gson.annotations.SerializedName;
@@ -19,7 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-public class Flag implements Parcelable {
+public class Flag implements Parcelable, Diffable<Flag> {
 
     @Attribute(name = "flag", required = false)
     @SerializedName("flag")
@@ -36,7 +38,7 @@ public class Flag implements Parcelable {
     private int position;
 
     public static Flag create(String flag) {
-        return new Flag(flag);
+        return new Flag(flag).trans();
     }
 
     public Flag() {
@@ -46,7 +48,6 @@ public class Flag implements Parcelable {
 
     public Flag(String flag) {
         this.episodes = new ArrayList<>();
-        this.show = Trans.s2t(flag);
         this.flag = flag;
         this.position = -1;
     }
@@ -100,7 +101,7 @@ public class Flag implements Parcelable {
 
     public void toggle(boolean activated, Episode episode) {
         if (activated) setActivated(episode);
-        else for (Episode item : getEpisodes()) item.deactivated();
+        else getEpisodes().forEach(Episode::deactivated);
     }
 
     private void setActivated(Episode episode) {
@@ -110,7 +111,7 @@ public class Flag implements Parcelable {
 
     public Episode find(String remarks, boolean strict) {
         int number = Util.getDigit(remarks);
-        if (getEpisodes().size() == 0) return null;
+        if (getEpisodes().isEmpty()) return null;
         if (getEpisodes().size() == 1) return getEpisodes().get(0);
         for (Episode item : getEpisodes()) if (item.rule1(remarks)) return item;
         for (Episode item : getEpisodes()) if (item.rule2(number)) return item;
@@ -126,11 +127,22 @@ public class Flag implements Parcelable {
         return Arrays.asList(item);
     }
 
+    public Flag trans() {
+        if (Trans.pass()) return this;
+        this.show = Trans.s2t(flag);
+        return this;
+    }
+
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof Flag it)) return false;
         return getFlag().equals(it.getFlag());
+    }
+
+    @Override
+    public int hashCode() {
+        return getFlag().hashCode();
     }
 
     @NonNull
@@ -174,4 +186,14 @@ public class Flag implements Parcelable {
             return new Flag[size];
         }
     };
+
+    @Override
+    public boolean isSameItem(Flag other) {
+        return equals(other);
+    }
+
+    @Override
+    public boolean isSameContent(Flag other) {
+        return equals(other);
+    }
 }

@@ -183,10 +183,6 @@ public class Result implements Parcelable {
         return url == null ? Url.create() : url;
     }
 
-    public void setUrl(Url url) {
-        this.url = url;
-    }
-
     public void setUrl(String url) {
         this.url = getUrl().replace(url);
     }
@@ -236,11 +232,15 @@ public class Result implements Parcelable {
     }
 
     public List<Danmaku> getDanmaku() {
-        return !Setting.isDanmakuLoad() || danmaku == null ? new ArrayList<>() : new ArrayList<>(danmaku);
+        return !Setting.isDanmakuLoad() || danmaku == null ? new ArrayList<>() : danmaku;
     }
 
     public String getFormat() {
         return format;
+    }
+
+    public void setFormat(String format) {
+        this.format = format;
     }
 
     public String getClick() {
@@ -283,6 +283,10 @@ public class Result implements Parcelable {
         return drm;
     }
 
+    public void setDrm(Drm drm) {
+        this.drm = drm;
+    }
+
     public boolean hasMsg() {
         return !getMsg().isEmpty();
     }
@@ -306,9 +310,9 @@ public class Result implements Parcelable {
 
     public Result trans() {
         if (Trans.pass()) return this;
-        for (Class type : getTypes()) type.trans();
-        for (Vod vod : getList()) vod.trans();
-        for (Sub sub : getSubs()) sub.trans();
+        getTypes().forEach(Class::trans);
+        getList().forEach(Vod::trans);
+        getSubs().forEach(Sub::trans);
         return this;
     }
 

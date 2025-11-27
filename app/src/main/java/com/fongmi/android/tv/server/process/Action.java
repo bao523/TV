@@ -24,18 +24,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import fi.iki.elonen.NanoHTTPD;
+import fi.iki.elonen.NanoHTTPD.IHTTPSession;
+import fi.iki.elonen.NanoHTTPD.Response;
 import okhttp3.FormBody;
 
 public class Action implements Process {
 
     @Override
-    public boolean isRequest(NanoHTTPD.IHTTPSession session, String url) {
+    public boolean isRequest(IHTTPSession session, String url) {
         return url.startsWith("/action");
     }
 
     @Override
-    public NanoHTTPD.Response doResponse(NanoHTTPD.IHTTPSession session, String url, Map<String, String> files) {
+    public Response doResponse(IHTTPSession session, String url, Map<String, String> files) {
         Map<String, String> params = session.getParms();
         String param = params.get("do");
         if ("file".equals(param)) onFile(params);
@@ -111,6 +112,7 @@ public class Action implements Process {
     private void sendHistory(Device device, Map<String, String> params) {
         try {
             Config config = Config.find(Config.objectFrom(params.get("config")));
+            if (config.getUrl() == null) config = Config.vod();
             FormBody.Builder body = new FormBody.Builder();
             body.add("config", config.toString());
             body.add("targets", App.gson().toJson(History.get(config.getId())));
@@ -134,9 +136,11 @@ public class Action implements Process {
     public void syncHistory(Map<String, String> params, boolean force) {
         Config config = Config.find(Config.objectFrom(params.get("config")));
         List<History> targets = History.arrayFrom(params.get("targets"));
-        if (VodConfig.get().getConfig().equals(config)) {
+        if (config.getUrl() == null) return;
+        if (config.getUrl().equals(VodConfig.getUrl())) {
             if (force) History.delete(config.getId());
             History.sync(targets);
+            RefreshEvent.history();
         } else {
             VodConfig.load(config, getCallback(targets));
         }
@@ -149,6 +153,7 @@ public class Action implements Process {
                 RefreshEvent.config();
                 RefreshEvent.video();
                 History.sync(targets);
+                RefreshEvent.history();
             }
 
             @Override
@@ -166,6 +171,7 @@ public class Action implements Process {
         } else {
             if (force) Keep.deleteAll();
             Keep.sync(configs, targets);
+            RefreshEvent.keep();
         }
     }
 
@@ -173,10 +179,11 @@ public class Action implements Process {
         return new Callback() {
             @Override
             public void success() {
-                RefreshEvent.history();
                 RefreshEvent.config();
                 RefreshEvent.video();
                 Keep.sync(configs, targets);
+                RefreshEvent.history();
+                RefreshEvent.keep();
             }
 
             @Override

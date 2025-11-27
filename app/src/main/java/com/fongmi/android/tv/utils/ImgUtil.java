@@ -3,6 +3,7 @@ package com.fongmi.android.tv.utils;
 import static android.widget.ImageView.ScaleType.CENTER_CROP;
 import static android.widget.ImageView.ScaleType.FIT_CENTER;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
@@ -13,14 +14,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestListener;
-import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.request.target.Target;
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.impl.CustomTarget;
 import com.github.catvod.utils.Json;
 import com.google.common.net.HttpHeaders;
 
@@ -34,8 +39,28 @@ public class ImgUtil {
 
     private static final Set<String> failed = new HashSet<>();
 
-    public static void load(String url, CustomTarget<Drawable> target) {
-        Glide.with(App.get()).asDrawable().load(getUrl(url)).into(target);
+    public static void logo(ImageView view) {
+        try {
+            Glide.with(view).load(UrlUtil.convert(VodConfig.get().getConfig().getLogo())).circleCrop().override(Target.SIZE_ORIGINAL, Target.SIZE_ORIGINAL).error(R.drawable.ic_logo).into(view);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void load(String url, CustomTarget<Bitmap> target) {
+        try {
+            Glide.with(App.get()).asBitmap().load(getUrl(url)).override(ResUtil.dp2px(96), ResUtil.dp2px(96)).error(R.drawable.artwork).into(target);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void load(Context context, String url, CustomTarget<Drawable> target) {
+        try {
+            Glide.with(context).load(getUrl(url)).override(ResUtil.getScreenWidth(), ResUtil.getScreenHeight()).error(R.drawable.artwork).into(target);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
     public static void load(String text, String url, ImageView view) {
@@ -43,9 +68,16 @@ public class ImgUtil {
     }
 
     public static void load(String text, String url, ImageView view, boolean vod) {
+        view.setScaleType(vod ? CENTER_CROP : FIT_CENTER);
         if (!vod) view.setVisibility(TextUtils.isEmpty(url) ? View.GONE : View.VISIBLE);
         if (TextUtils.isEmpty(url) || failed.contains(url)) view.setImageDrawable(getTextDrawable(text, vod));
-        else view.post(() -> Glide.with(App.get()).asBitmap().load(getUrl(url)).override(view.getWidth(), view.getHeight()).listener(getListener(text, url, view, vod)).into(view));
+        else try {
+            RequestBuilder<Drawable> builder = Glide.with(view).load(getUrl(url)).diskCacheStrategy(DiskCacheStrategy.RESOURCE).listener(getListener(text, url, view, vod));
+            if (vod) builder.centerCrop().into(view);
+            else builder.fitCenter().into(view);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
     public static Object getUrl(String url) {
@@ -73,18 +105,17 @@ public class ImgUtil {
         return builder.buildRoundRect(text, ColorGenerator.get400(text), ResUtil.dp2px(4));
     }
 
-    private static RequestListener<Bitmap> getListener(String text, String url, ImageView view, boolean vod) {
+    private static RequestListener<Drawable> getListener(String text, String url, ImageView view, boolean vod) {
         return new RequestListener<>() {
             @Override
-            public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Bitmap> target, boolean isFirstResource) {
+            public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Drawable> target, boolean isFirstResource) {
                 view.setImageDrawable(getTextDrawable(text, vod));
                 failed.add(url);
                 return true;
             }
 
             @Override
-            public boolean onResourceReady(@NonNull Bitmap resource, @NonNull Object model, Target<Bitmap> target, @NonNull DataSource dataSource, boolean isFirstResource) {
-                view.setScaleType(vod ? CENTER_CROP : FIT_CENTER);
+            public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
                 return false;
             }
         };

@@ -72,6 +72,11 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
     }
 
     @Override
+    protected boolean customWall() {
+        return false;
+    }
+
+    @Override
     protected ViewBinding getBinding() {
         return mBinding = ActivityCastBinding.inflate(getLayoutInflater());
     }
@@ -98,7 +103,7 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
     @Override
     @SuppressLint("ClickableViewAccessibility")
     protected void initEvent() {
-        mBinding.control.seek.setListener(mPlayers);
+        mBinding.control.seek.setPlayer(mPlayers);
         mBinding.control.speed.setUpListener(this::onSpeedAdd);
         mBinding.control.speed.setDownListener(this::onSpeedSub);
         mBinding.control.text.setUpListener(this::onSubtitleClick);
@@ -234,14 +239,14 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
     }
 
     private void showInfo() {
-        mBinding.widget.info.setVisibility(View.VISIBLE);
+        mBinding.widget.top.setVisibility(View.VISIBLE);
         mBinding.widget.center.setVisibility(View.VISIBLE);
-        mBinding.widget.exoDuration.setText(mPlayers.getDurationTime());
-        mBinding.widget.exoPosition.setText(mPlayers.getPositionTime(0));
+        mBinding.widget.duration.setText(mPlayers.getDurationTime());
+        mBinding.widget.position.setText(mPlayers.getPositionTime(0));
     }
 
     private void hideInfo() {
-        mBinding.widget.info.setVisibility(View.GONE);
+        mBinding.widget.top.setVisibility(View.GONE);
         mBinding.widget.center.setVisibility(View.GONE);
     }
 
@@ -264,7 +269,7 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
 
     private void setTraffic() {
         Traffic.setSpeed(mBinding.widget.traffic);
-        App.post(mR2, Constant.INTERVAL_TRAFFIC);
+        App.post(mR2, 1000);
     }
 
     private void setR1Callback() {
@@ -277,10 +282,6 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
 
     public void setRedirect(boolean redirect) {
         this.redirect = redirect;
-    }
-
-    private void checkPlayImg() {
-        ActionEvent.update();
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -315,7 +316,6 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
                 break;
             case Player.STATE_READY:
                 hideProgress();
-                checkPlayImg();
                 mPlayers.reset();
                 setState(RenderState.PLAYING);
                 break;
@@ -341,7 +341,7 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
     }
 
     private void setMetadata() {
-        mPlayers.setMetadata(mBinding.widget.title.getText().toString(), "", "", mBinding.exo.getDefaultArtwork());
+        mPlayers.setMetadata(mBinding.widget.title.getText().toString(), "", "");
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -360,7 +360,6 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
     private void onPaused() {
         setState(RenderState.PAUSED);
         mPlayers.pause();
-        checkPlayImg();
         showInfo();
     }
 
@@ -368,7 +367,6 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
         if (mPlayers.isEmpty()) return;
         setState(RenderState.PLAYING);
         mPlayers.play();
-        checkPlayImg();
         hideCenter();
     }
 
@@ -391,8 +389,8 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
 
     @Override
     public void onSubtitleClick() {
-        App.post(this::hideControl, 200);
-        App.post(() -> SubtitleDialog.create().view(mBinding.exo.getSubtitleView()).full(true).show(this), 200);
+        SubtitleDialog.create().view(mBinding.exo.getSubtitleView()).full(true).show(this);
+        App.post(this::hideControl, 100);
     }
 
     @Override
@@ -452,8 +450,8 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
     public void onSeeking(long time) {
         if (mPlayers.isEmpty()) return;
         mBinding.widget.center.setVisibility(View.VISIBLE);
-        mBinding.widget.exoDuration.setText(mPlayers.getDurationTime());
-        mBinding.widget.exoPosition.setText(mPlayers.getPositionTime(time));
+        mBinding.widget.duration.setText(mPlayers.getDurationTime());
+        mBinding.widget.position.setText(mPlayers.getPositionTime(time));
         mBinding.widget.action.setImageResource(time > 0 ? R.drawable.ic_widget_forward : R.drawable.ic_widget_rewind);
         hideProgress();
     }
@@ -513,13 +511,11 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
     protected void onStart() {
         super.onStart();
         mClock.stop().start();
-        onPlay();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (isRedirect()) onPlay();
         setRedirect(false);
     }
 
@@ -537,24 +533,24 @@ public class CastActivity extends BaseActivity implements CustomKeyDownVod.Liste
     }
 
     @Override
-    public void onBackPressed() {
+    protected void onBackInvoked() {
         if (isVisible(mBinding.control.getRoot())) {
             hideControl();
         } else if (isVisible(mBinding.widget.center)) {
             hideCenter();
         } else {
-            super.onBackPressed();
+            super.onBackInvoked();
         }
     }
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         mClock.release();
         mPlayers.release();
         unbindService(this);
         PlaybackService.stop();
         mService.bindRealPlayer(null);
         App.removeCallbacks(mR1, mR2);
+        super.onDestroy();
     }
 }

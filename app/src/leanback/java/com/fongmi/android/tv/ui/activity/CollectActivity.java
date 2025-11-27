@@ -30,19 +30,19 @@ import com.fongmi.android.tv.model.SiteViewModel;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.fragment.CollectFragment;
 import com.fongmi.android.tv.ui.presenter.CollectPresenter;
-import com.fongmi.android.tv.utils.PauseExecutor;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.google.gson.reflect.TypeToken;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class CollectActivity extends BaseActivity {
 
     private ActivityCollectBinding mBinding;
     private ArrayObjectAdapter mAdapter;
     private SiteViewModel mViewModel;
-    private PauseExecutor mExecutor;
+    private List<Site> mSites;
     private View mOldView;
 
     public static void start(Activity activity, String keyword) {
@@ -78,6 +78,7 @@ public class CollectActivity extends BaseActivity {
         setRecyclerView();
         setViewModel();
         saveKeyword();
+        setSites();
         setPager();
         search();
     }
@@ -107,50 +108,35 @@ public class CollectActivity extends BaseActivity {
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
         mViewModel.search.observe(this, result -> {
+            if (result.getList().isEmpty()) return;
             getFragment().addVideo(result.getList());
             mAdapter.add(Collect.create(result.getList()));
             mBinding.pager.getAdapter().notifyDataSetChanged();
         });
     }
 
-    private void setPager() {
-        mBinding.pager.setAdapter(new PageAdapter(getSupportFragmentManager()));
-    }
-
-    private List<Site> getSites() {
-        List<Site> items = new ArrayList<>();
-        for (Site site : VodConfig.get().getSites()) if (site.isSearchable()) items.add(site);
-        return items;
-    }
-
-    private void search() {
-        mAdapter.add(Collect.all());
-        if (mExecutor != null) stop();
-        mBinding.pager.getAdapter().notifyDataSetChanged();
-        mExecutor = new PauseExecutor(10);
-        mBinding.result.setText(getString(R.string.collect_result, getKeyword()));
-        for (Site site : getSites()) mExecutor.execute(() -> search(site));
-    }
-
-    private void search(Site site) {
-        try {
-            mViewModel.searchContent(site, getKeyword(), false);
-        } catch (Throwable ignored) {
-        }
-    }
-
     private void saveKeyword() {
         List<String> items = Setting.getKeyword().isEmpty() ? new ArrayList<>() : App.gson().fromJson(Setting.getKeyword(), new TypeToken<List<String>>() {}.getType());
         items.remove(getKeyword());
         items.add(0, getKeyword());
-        if (items.size() > 8) items.remove(8);
+        if (items.size() > 9) items.remove(9);
         Setting.putKeyword(App.gson().toJson(items));
     }
 
-    private void stop() {
-        if (mExecutor == null) return;
-        mExecutor.shutdownNow();
-        mExecutor = null;
+    private void setSites() {
+        mSites = VodConfig.get().getSites().stream().filter(Site::isSearchable).collect(Collectors.toList());
+    }
+
+    private void setPager() {
+        mBinding.pager.setAdapter(new PageAdapter(getSupportFragmentManager()));
+    }
+
+    private void search() {
+        if (mSites.isEmpty()) return;
+        mAdapter.add(Collect.all());
+        mBinding.pager.getAdapter().notifyDataSetChanged();
+        mBinding.result.setText(getString(R.string.collect_result, getKeyword()));
+        mViewModel.searchContent(mSites, getKeyword(), false);
     }
 
     private void onChildSelected(@Nullable RecyclerView.ViewHolder child) {
@@ -158,7 +144,7 @@ public class CollectActivity extends BaseActivity {
         if (child == null) return;
         mOldView = child.itemView;
         mOldView.setActivated(true);
-        App.post(mRunnable, 200);
+        App.post(mRunnable, 100);
     }
 
     private final Runnable mRunnable = new Runnable() {
@@ -169,27 +155,9 @@ public class CollectActivity extends BaseActivity {
     };
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        if (mExecutor != null) mExecutor.resume();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (mExecutor != null) mExecutor.pause();
-    }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        stop();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        stop();
+    protected void onBackInvoked() {
+        mViewModel.stopSearch();
+        super.onBackInvoked();
     }
 
     class PageAdapter extends FragmentStatePagerAdapter {

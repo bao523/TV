@@ -3,6 +3,7 @@ package com.fongmi.android.tv.api.loader;
 import android.content.Context;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.utils.Download;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
@@ -17,6 +18,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import dalvik.system.DexClassLoader;
@@ -35,7 +37,7 @@ public class JarLoader {
     }
 
     public void clear() {
-        for (Spider spider : spiders.values()) App.execute(spider::destroy);
+        spiders.values().forEach(Spider::destroy);
         loaders.clear();
         methods.clear();
         spiders.clear();
@@ -46,14 +48,15 @@ public class JarLoader {
     }
 
     private void load(String key, File file) {
-        if (!file.setReadOnly()) return;
+        if (!Path.exists(file) || !file.setReadOnly()) return;
+        if (Thread.interrupted()) return;
         loaders.put(key, dex(file));
         invokeInit(key);
         putProxy(key);
     }
 
     private DexClassLoader dex(File file) {
-        return new DexClassLoader(file.getAbsolutePath(), Path.jar().getAbsolutePath(), null, App.get().getClassLoader());
+        return new DexClassLoader(file.getAbsolutePath(), Path.jar().getAbsolutePath(), Path.jar().getAbsolutePath(), App.get().getClassLoader());
     }
 
     private void invokeInit(String key) {
@@ -76,14 +79,6 @@ public class JarLoader {
         }
     }
 
-    private File download(String url) {
-        try {
-            return Path.write(Path.jar(url), OkHttp.bytes(url));
-        } catch (Exception e) {
-            return Path.jar(url);
-        }
-    }
-
     public synchronized void parseJar(String key, String jar) {
         if (loaders.containsKey(key)) return;
         String[] texts = jar.split(";md5;");
@@ -93,7 +88,7 @@ public class JarLoader {
         if (!md5.isEmpty() && Util.equals(jar, md5)) {
             load(key, Path.jar(jar));
         } else if (jar.startsWith("http")) {
-            load(key, download(jar));
+            load(key, Download.create(jar, Path.jar(jar)).get());
         } else if (jar.startsWith("file")) {
             load(key, Path.local(jar));
         } else if (jar.startsWith("assets")) {
@@ -141,17 +136,13 @@ public class JarLoader {
     }
 
     public Object[] proxyInvoke(Map<String, String> params) {
+        if (recent == null) return tryOthers(params);
         Object[] result = proxyInvoke(methods.get(recent), params);
         return result != null ? result : tryOthers(params);
     }
 
-    private Object[] tryOthers(Map<String, String> params) {
-        for (Map.Entry<String, Method> entry : methods.entrySet()) {
-            if (entry.getKey().equals(recent)) continue;
-            Object[] result = proxyInvoke(entry.getValue(), params);
-            if (result != null) return result;
-        }
-        return null;
+    private Object[] tryOthers(Map<String, String> p) {
+        return methods.entrySet().stream().filter(e -> !e.getKey().equals(recent)).map(e -> proxyInvoke(e.getValue(), p)).filter(Objects::nonNull).findFirst().orElse(null);
     }
 
     private Object[] proxyInvoke(Method method, Map<String, String> params) {

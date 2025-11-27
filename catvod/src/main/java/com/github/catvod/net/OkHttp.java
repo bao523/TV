@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 
 import androidx.collection.ArrayMap;
 
-import com.github.catvod.bean.Doh;
 import com.github.catvod.net.interceptor.AuthInterceptor;
 import com.github.catvod.net.interceptor.RequestInterceptor;
 import com.github.catvod.net.interceptor.ResponseInterceptor;
@@ -27,7 +26,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import okhttp3.dnsoverhttps.DnsOverHttps;
 import okhttp3.logging.HttpLoggingInterceptor;
 
 public class OkHttp {
@@ -40,6 +38,7 @@ public class OkHttp {
     private OkAuthenticator authenticator;
     private OkProxySelector selector;
     private OkHttpClient client;
+    private OkHttpClient player;
     private OkDns dns;
 
     private static class Loader {
@@ -58,11 +57,6 @@ public class OkHttp {
         authInterceptor().clear();
         requestInterceptor().clear();
         responseInterceptor().clear();
-    }
-
-    public void setDoh(Doh doh) {
-        dns().setDoh(doh.getUrl().isEmpty() ? null : new DnsOverHttps.Builder().client(new OkHttpClient()).url(HttpUrl.get(doh.getUrl())).bootstrapDnsHosts(doh.getHosts()).build());
-        client = null;
     }
 
     public static OkDns dns() {
@@ -100,8 +94,17 @@ public class OkHttp {
         return get().client = getBuilder().build();
     }
 
+    public static OkHttpClient player() {
+        if (get().player != null) return get().player;
+        return get().player = getBuilder().build();
+    }
+
     public static OkHttpClient client(long timeout) {
         return client().newBuilder().connectTimeout(timeout, TimeUnit.MILLISECONDS).readTimeout(timeout, TimeUnit.MILLISECONDS).writeTimeout(timeout, TimeUnit.MILLISECONDS).build();
+    }
+
+    public static OkHttpClient noRedirect() {
+        return noRedirect(TIMEOUT);
     }
 
     public static OkHttpClient noRedirect(long timeout) {
@@ -129,16 +132,6 @@ public class OkHttp {
         } catch (Exception e) {
             e.printStackTrace();
             return "";
-        }
-    }
-
-    public static byte[] bytes(String url) {
-        if (!url.startsWith("http")) return new byte[0];
-        try (Response res = newCall(url).execute()) {
-            return res.body().bytes();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new byte[0];
         }
     }
 
@@ -175,12 +168,20 @@ public class OkHttp {
     }
 
     public static void cancel(String tag) {
-        for (Call call : client().dispatcher().queuedCalls()) if (tag.equals(call.request().tag())) call.cancel();
-        for (Call call : client().dispatcher().runningCalls()) if (tag.equals(call.request().tag())) call.cancel();
+        cancel(client(), tag);
+    }
+
+    public static void cancel(OkHttpClient client, String tag) {
+        for (Call call : client.dispatcher().queuedCalls()) if (tag.equals(call.request().tag())) call.cancel();
+        for (Call call : client.dispatcher().runningCalls()) if (tag.equals(call.request().tag())) call.cancel();
     }
 
     public static void cancelAll() {
-        client().dispatcher().cancelAll();
+        cancelAll(client());
+    }
+
+    public static void cancelAll(OkHttpClient client) {
+        client.dispatcher().cancelAll();
     }
 
     public static FormBody toBody(ArrayMap<String, String> params) {
@@ -196,7 +197,7 @@ public class OkHttp {
     }
 
     private static OkHttpClient.Builder getBuilder() {
-        OkHttpClient.Builder builder = new OkHttpClient.Builder().cookieJar(OkCookieJar.get()).addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
         builder.proxyAuthenticator(authenticator());
         //builder.addNetworkInterceptor(logging);

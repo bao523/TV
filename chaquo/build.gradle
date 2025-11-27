@@ -6,13 +6,11 @@ plugins {
 android {
     namespace 'com.fongmi.chaquo'
 
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         minSdk 24
-        targetSdk 28
+        targetSdk 36
         python {
             version "3.8"
             pip {

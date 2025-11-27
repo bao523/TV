@@ -5,17 +5,15 @@ plugins {
 android {
     namespace 'com.fongmi.android.tv'
 
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId "com.fongmi.android.tv"
         minSdk 24
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 416
-        versionName "4.1.6"
+        versionCode 493
+        versionName "4.9.3"
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments = ["room.schemaLocation": "$projectDir/schemas".toString(), "eventBusIndex": "com.fongmi.android.tv.event.EventIndex"]
@@ -31,10 +29,6 @@ android {
         }
         mobile {
             dimension "mode"
-        }
-        x86 {
-            dimension "abi"
-            ndk { abiFilters "x86" }
         }
         arm64_v8a {
             dimension "abi"
@@ -60,9 +54,6 @@ android {
     }
 
     packagingOptions {
-        jniLibs {
-            useLegacyPackaging true
-        }
         resources {
             exclude 'META-INF/beans.xml'
             exclude 'META-INF/versions/9/OSGI-INF/MANIFEST.MF'
@@ -98,6 +89,7 @@ dependencies {
     implementation project(':chaquo')
     implementation project(':quickjs')
     implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.core:core-splashscreen:1.2.0'
     implementation 'androidx.media:media:1.7.1'
     implementation 'androidx.media3:media3-common:' + media3Version
     implementation 'androidx.media3:media3-container:' + media3Version
@@ -114,21 +106,21 @@ dependencies {
     implementation 'androidx.media3:media3-exoplayer-smoothstreaming:' + media3Version
     implementation 'androidx.media3:media3-extractor:' + media3Version
     implementation 'androidx.media3:media3-ui:' + media3Version
-    implementation 'androidx.room:room-runtime:2.7.2'
+    implementation 'androidx.palette:palette:1.0.0'
+    implementation 'androidx.recyclerview:recyclerview:1.4.0'
+    implementation 'androidx.room:room-runtime:2.8.4'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     implementation 'cat.ereza:customactivityoncrash:2.4.0'
+    implementation 'com.airbnb.android:lottie:6.7.1'
     implementation 'com.github.bassaer:materialdesigncolors:1.0.0'
     implementation 'com.github.bumptech.glide:glide:' + glideVersion
     implementation 'com.github.bumptech.glide:annotations:' + glideVersion
     implementation 'com.github.bumptech.glide:avif-integration:' + glideVersion
     implementation 'com.github.bumptech.glide:okhttp3-integration:' + glideVersion
     implementation 'com.github.jahirfiquitiva:TextDrawable:1.0.3'
-    implementation 'com.github.thegrizzlylabs:sardine-android:0.9'
     implementation 'com.github.teamnewpipe:NewPipeExtractor:v0.24.8'
-    implementation 'com.google.android.material:material:1.12.0'
-    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.android.material:material:1.13.0'
     implementation 'com.guolindev.permissionx:permissionx:1.8.1'
-    implementation 'com.hierynomus:smbj:0.14.0'
-    implementation 'io.antmedia:rtmp-client:3.2.0'
     implementation 'io.github.anilbeesetti:nextlib-media3ext:1.8.0-0.9.0'
     implementation 'javax.servlet:javax.servlet-api:3.1.0'
     implementation 'org.eclipse.jetty:jetty-client:8.1.21.v20160908'
@@ -139,14 +131,14 @@ dependencies {
     implementation 'org.greenrobot:eventbus:3.3.1'
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
     implementation('org.simpleframework:simple-xml:2.7.1') { exclude group: 'stax', module: 'stax-api' exclude group: 'xpp3', module: 'xpp3' }
+    implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.29'
     leanbackImplementation 'androidx.leanback:leanback:1.2.0'
     leanbackImplementation 'com.github.JessYanCoding:AndroidAutoSize:1.2.1'
     mobileImplementation 'androidx.biometric:biometric:1.1.0'
-    mobileImplementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     mobileImplementation 'com.google.android.flexbox:flexbox:3.0.0'
-    mobileImplementation('com.journeyapps:zxing-android-embedded:4.3.0') { transitive = false }
-    annotationProcessor 'androidx.room:room-compiler:2.7.2'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
+    mobileImplementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    annotationProcessor 'androidx.room:room-compiler:2.8.4'
+    annotationProcessor 'com.github.bumptech.glide:compiler:' + glideVersion
     annotationProcessor 'org.greenrobot:eventbus-annotation-processor:3.3.1'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs_nio:2.1.5'
 }

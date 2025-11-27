@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.leanback.widget.Presenter;
 
+import com.bumptech.glide.Glide;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.databinding.AdapterVodBinding;
@@ -15,12 +16,12 @@ import com.fongmi.android.tv.utils.ResUtil;
 
 public class HistoryPresenter extends Presenter {
 
-    private final OnClickListener mListener;
+    private final OnClickListener listener;
     private int width, height;
     private boolean delete;
 
     public HistoryPresenter(OnClickListener listener) {
-        this.mListener = listener;
+        this.listener = listener;
         setLayoutSize();
     }
 
@@ -33,6 +34,13 @@ public class HistoryPresenter extends Presenter {
         boolean onLongClick();
     }
 
+    private void setLayoutSize() {
+        int space = ResUtil.dp2px(48) + ResUtil.dp2px(16 * (Product.getColumn() - 1));
+        int base = ResUtil.getScreenWidth() - space;
+        width = base / Product.getColumn();
+        height = (int) (width / 0.75f);
+    }
+
     public boolean isDelete() {
         return delete;
     }
@@ -41,15 +49,17 @@ public class HistoryPresenter extends Presenter {
         this.delete = delete;
     }
 
-    private void setLayoutSize() {
-        int space = ResUtil.dp2px(48) + ResUtil.dp2px(16 * (Product.getColumn() - 1));
-        int base = ResUtil.getScreenWidth() - space;
-        width = base / Product.getColumn();
-        height = (int) (width / 0.75f);
+    private void setClickListener(View root, History item) {
+        root.setOnLongClickListener(view -> listener.onLongClick());
+        root.setOnClickListener(view -> {
+            if (isDelete()) listener.onItemDelete(item);
+            else listener.onItemClick(item);
+        });
     }
 
+    @NonNull
     @Override
-    public Presenter.ViewHolder onCreateViewHolder(ViewGroup parent) {
+    public Presenter.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent) {
         ViewHolder holder = new ViewHolder(AdapterVodBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false));
         holder.binding.getRoot().getLayoutParams().width = width;
         holder.binding.image.getLayoutParams().height = height;
@@ -57,7 +67,7 @@ public class HistoryPresenter extends Presenter {
     }
 
     @Override
-    public void onBindViewHolder(Presenter.ViewHolder viewHolder, Object object) {
+    public void onBindViewHolder(@NonNull Presenter.ViewHolder viewHolder, Object object) {
         History item = (History) object;
         ViewHolder holder = (ViewHolder) viewHolder;
         setClickListener(holder.view, item);
@@ -70,16 +80,10 @@ public class HistoryPresenter extends Presenter {
         ImgUtil.load(item.getVodName(), item.getVodPic(), holder.binding.image);
     }
 
-    private void setClickListener(View root, History item) {
-        root.setOnLongClickListener(view -> mListener.onLongClick());
-        root.setOnClickListener(view -> {
-            if (isDelete()) mListener.onItemDelete(item);
-            else mListener.onItemClick(item);
-        });
-    }
-
     @Override
-    public void onUnbindViewHolder(Presenter.ViewHolder viewHolder) {
+    public void onUnbindViewHolder(@NonNull Presenter.ViewHolder viewHolder) {
+        ViewHolder holder = (ViewHolder) viewHolder;
+        Glide.with(holder.binding.image).clear(holder.binding.image);
     }
 
     public static class ViewHolder extends Presenter.ViewHolder {

@@ -2,13 +2,16 @@ package com.fongmi.android.tv.bean;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.text.TextUtils;
 
-import com.fongmi.android.tv.App;
+import androidx.annotation.Nullable;
+
+import com.fongmi.android.tv.impl.Diffable;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Trans;
 import com.google.gson.annotations.SerializedName;
 
-public class Episode implements Parcelable {
+public class Episode implements Parcelable, Diffable<Episode> {
 
     @SerializedName("name")
     private String name;
@@ -23,21 +26,17 @@ public class Episode implements Parcelable {
     private boolean selected;
 
     public static Episode create(String name, String url) {
-        return new Episode(name, "", url);
+        return new Episode(name, "", url).trans();
     }
 
     public static Episode create(String name, String desc, String url) {
-        return new Episode(name, desc, url);
+        return new Episode(name, desc, url).trans();
     }
 
-    public static Episode objectFrom(String str) {
-        return App.gson().fromJson(str, Episode.class);
-    }
-
-    public Episode(String name, String desc, String url) {
+    private Episode(String name, String desc, String url) {
         this.number = Util.getDigit(name);
-        this.name = Trans.s2t(name);
-        this.desc = Trans.s2t(desc);
+        this.name = name;
+        this.desc = desc;
         this.url = url;
     }
 
@@ -45,7 +44,7 @@ public class Episode implements Parcelable {
     }
 
     public String getName() {
-        return name;
+        return TextUtils.isEmpty(name) ? "" : name;
     }
 
     public void setName(String name) {
@@ -53,11 +52,11 @@ public class Episode implements Parcelable {
     }
 
     public String getDesc() {
-        return desc;
+        return TextUtils.isEmpty(desc) ? "" : desc;
     }
 
     public String getUrl() {
-        return url;
+        return TextUtils.isEmpty(url) ? "" : url;
     }
 
     public int getIndex() {
@@ -109,15 +108,23 @@ public class Episode implements Parcelable {
         return name.toLowerCase().contains(getName().toLowerCase());
     }
 
-    public boolean equals(Episode episode) {
-        return rule1(episode.getName());
+    public Episode trans() {
+        if (Trans.pass()) return this;
+        this.name = Trans.s2t(name);
+        this.desc = Trans.s2t(desc);
+        return this;
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof Episode it)) return false;
-        return getUrl().equals(it.getUrl()) && getName().equals(it.getName());
+        return getName().equals(it.getName());
+    }
+
+    @Override
+    public int hashCode() {
+        return getName().hashCode();
     }
 
     @Override
@@ -155,4 +162,14 @@ public class Episode implements Parcelable {
             return new Episode[size];
         }
     };
+
+    @Override
+    public boolean isSameItem(Episode other) {
+        return equals(other);
+    }
+
+    @Override
+    public boolean isSameContent(Episode other) {
+        return getUrl().equals(other.getUrl()) && getDesc().equals(other.getDesc());
+    }
 }
